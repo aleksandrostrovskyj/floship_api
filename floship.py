@@ -1,11 +1,12 @@
 import json
 import logging
 import requests
+import aiohttp
 from settings import config
 from abc import ABC, abstractmethod
 from decorators import ResponseHandler
 
-logging.basicConfig(format='%(asctime)s - %(cor_func_name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
 """
@@ -20,9 +21,8 @@ class Floship:
     def __init__(self, implementation) -> None:
         self.implementation = implementation
 
-    @ResponseHandler.handler
-    def make_request(self, *args, **kwargs):
-        return self.implementation.make_request(*args, **kwargs)
+    async def make_request(self, *args, **kwargs):
+        return await self.implementation.make_request(*args, **kwargs)
 
 
 class Implementation(ABC):
@@ -49,12 +49,12 @@ class FloshipAPI(Implementation):
     main_url = 'https://admin.floship.com/api/v1/'
 
     def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update(self.headers)
         self.url = f'{self.main_url}'
 
-    def make_request(self, method, api_url, params):
-        return self.session.request(method=method, url=f'{self.url}{api_url}', params=params)
+    async def make_request(self, method, api_url, params):
+        # return self.session.request(method=method, url=f'{self.url}{api_url}', params=params)
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            return await session.request(method=method, url=f'{self.url}{api_url}', params=params)
 
 
 class FloshipSession(Implementation):
@@ -78,19 +78,18 @@ class FloshipSession(Implementation):
         'password': config['password']
     }
 
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update(self.headers)
-        self.login()
+    # def __init__(self):
+    #     self.login()
 
-    @ResponseHandler.handler
-    def login(self):
+    def login(self, session):
         """
         Method to retrieve session token for further requests
         :return:
         """
-        return self.session.request('POST', url=self.login_url, data=json.dumps(self.payload))
+        session.request('POST', url=self.login_url, data=json.dumps(self.payload))
 
-    def make_request(self, method, url, data=None, params=None):
-        return self.session.request(method=method, url=url, data=data, params=params)
+    async def make_request(self, method, url, data=None, params=None):
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            self.login(session)
+            return await session.request(method=method, url=url, data=data, params=params)
 

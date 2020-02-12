@@ -10,10 +10,10 @@ class ResponseHandler:
     @classmethod
     def handler(cls, func):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             try:
                 logging.info('Send request.')
-                response = func(*args, **kwargs)
+                response = await func(*args, **kwargs)
                 logging.info('Check status.')
                 response.raise_for_status()
             except requests.exceptions.HTTPError as http_error:
@@ -21,6 +21,6 @@ class ResponseHandler:
             except Exception as exc:
                 logging.warning(f'{exc} - issue in program')
             else:
-                logging.info(f'OK - {response.status_code}')
+                logging.info(f'OK - {response.status}')
                 return response
         return wrapper
