@@ -5,6 +5,7 @@ from sqlalchemy import (
     BigInteger, Integer, DateTime,
     Float, String, Boolean
 )
+import logging
 
 meta = MetaData()
 
@@ -71,6 +72,7 @@ def insert_data(engine, data, table):
         VALUES {data_to_insert}
     """
     result = engine.execute(query)
+    logging.info(f'Table {table}: {result.rowcount} rows have been added')
     result.close()
 
 
@@ -80,4 +82,5 @@ def delete_data(engine, ids_list, table):
             WHERE order_id in {ids_list}
         """
     result = engine.execute(query)
+    logging.info(f'Table {table}: {result.rowcount} rows have been deleted')
     result.close()

@@ -5,7 +5,7 @@ from settings import config
 from abc import ABC, abstractmethod
 from decorators import ResponseHandler
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 
 
 """

@@ -2,6 +2,13 @@ from floship import Floship, FloshipAPI, FloshipSession
 from parsers import parse_api_response_order, parse_session_response_order
 from db import db_create_engine, insert_data, delete_data
 from datetime import date, timedelta
+import logging
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
+                    level=logging.INFO, filename=BASE_DIR / 'orders.log')
 
 
 def main_api(date_from: date):
@@ -18,7 +25,6 @@ def main_api(date_from: date):
         response = floship_api.make_request('GET', api_url, api_params)
         for each in response.json()['results']:
             result.extend(parse_api_response_order(each))
-        # result.extend([parse_api_response_order(each) for each in response.json()['results']])
 
         if not response.json()['next']:
             break

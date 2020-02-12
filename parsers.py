@@ -86,6 +86,23 @@ def parse_session_response_order(order):
         else:
             return '', '', '', ''
 
+    def parse_costs(costs_node):
+        if costs_node:
+            return (
+                costs_node['sales_order_id'],
+                costs_node['pick_pack_cost'] or 0,
+                costs_node['actual_cost'] or 0,
+                costs_node['fuel_surcharge'] or 0,
+                costs_node['actual_weight'] or 0,
+                costs_node['processing_fee'] or 0,
+                costs_node['estimated_shipping_cost'] or 0,
+                costs_node['estimated_pick_pack_cost'] or 0,
+                costs_node['return_cost'] or 0,
+                costs_node['discount_value'] or 0
+            )
+        else:
+            return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
     return (
         order['id'],
         order['status'],
@@ -97,15 +114,6 @@ def parse_session_response_order(order):
         *parse_courier(order['courier']),
         order['tracking_number'],
         order['tracking_status'] or '',
-        order['cost']['sales_order_id'],
-        order['cost']['pick_pack_cost'] or 0,
-        order['cost']['actual_cost'] or 0,
-        order['cost']['fuel_surcharge'] or 0,
-        order['cost']['actual_weight'] or 0,
-        order['cost']['processing_fee'] or 0,
-        order['cost']['estimated_shipping_cost'] or 0,
-        order['cost']['estimated_pick_pack_cost'] or 0,
-        order['cost']['return_cost'] or 0,
-        order['cost']['discount_value'] or 0,
+        *parse_costs(order['cost']),
         order['parent_order'] or ''
     )
