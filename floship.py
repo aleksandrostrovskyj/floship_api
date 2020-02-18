@@ -4,9 +4,7 @@ import requests
 import aiohttp
 from settings import config
 from abc import ABC, abstractmethod
-from decorators import ResponseHandler
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
 """
@@ -30,7 +28,7 @@ class Implementation(ABC):
 
     """
     @abstractmethod
-    def make_request(self, method, api_url, params):
+    async def make_request(self, method, api_url, params):
         pass
 
 
@@ -52,8 +50,8 @@ class FloshipAPI(Implementation):
         self.url = f'{self.main_url}'
 
     async def make_request(self, method, api_url, params):
-        # return self.session.request(method=method, url=f'{self.url}{api_url}', params=params)
         async with aiohttp.ClientSession(headers=self.headers) as session:
+            logging.info('FloshipAPI: Make request')
             return await session.request(method=method, url=f'{self.url}{api_url}', params=params)
 
 
@@ -64,7 +62,7 @@ class FloshipSession(Implementation):
     Should only be used for cost information retrieving.
     """
     login_url = 'https://admin.floship.com/internal_api/users/login'
-    config = config["floship_api"]
+    config = config["floship_session"]
     headers = {
         'accept': "application/json, text/plain, */*",
         'sec-fetch-dest': "empty",
@@ -77,19 +75,22 @@ class FloshipSession(Implementation):
         'username': config['username'],
         'password': config['password']
     }
+    cookies = {}
 
-    # def __init__(self):
-    #     self.login()
+    def __init__(self):
+        self.login()
 
-    def login(self, session):
+    def login(self):
         """
         Method to retrieve session token for further requests
         :return:
         """
-        session.request('POST', url=self.login_url, data=json.dumps(self.payload))
+        temp_session = requests.Session()
+        temp_session.request('POST', url=self.login_url, data=json.dumps(self.payload), headers=self.headers)
+        self.headers = temp_session.headers
+        self.cookies = temp_session.cookies
 
     async def make_request(self, method, url, data=None, params=None):
-        async with aiohttp.ClientSession(headers=self.headers) as session:
-            self.login(session)
+        async with aiohttp.ClientSession(headers=self.headers, cookies=self.cookies) as session:
+            logging.info('FloshipSession: Make request')
             return await session.request(method=method, url=url, data=data, params=params)
-

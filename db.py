@@ -1,58 +1,49 @@
-import aiomysql.sa
-from sqlalchemy import (
-    MetaData, Table, Column,
-    BigInteger, Integer, DateTime,
-    Float, String, Boolean
-)
+import logging
+import aiomysql
+from settings import config
 
-meta = MetaData()
 
-orders = Table(
-    'orders', meta,
-    Column('id', Integer, primary_key=True, autoincrement=True),
-    Column('order_id', BigInteger, nullable=False),
-    Column('original_transaction_date', DateTime, nullable=False),
-    Column('amount', Float),
-    Column('currency', String(5)),
-    Column('quantity', Integer),
-    Column('item_id', BigInteger),
-    Column('product_id', BigInteger),
-    Column('has_batteries', Boolean),
-    Column('customs_description', String(200)),
-    Column('gross_width', Float),
-    Column('description', String(200)),
-    Column('gross_weight', Float),
-    Column('product_quantity', Integer),
-    Column('packaging_type', String(100)),
-    Column('harmonized_code', String(100)),
-    Column('item_type', String(100)),
-    Column('upc', String(100)),
-    Column('gross_length', Float),
-    Column('customs_category', String(100)),
-    Column('country_of_manufacture', String(10)),
-    Column('sku', String(20)),
-    Column('gross_height', Float),
-    Column('shipping_country', String(10)),
-    Column('shipping_addressee', String(100)),
-    Column('shipping_address_1', String(100)),
-    Column('shipping_address_2', String(100)),
-    Column('shipping_address_3', String(100)),
-    Column('shipping_city', String(50)),
-    Column('shipping_state', String(50)),
-    Column('shipping_postal_code', String(50)),
-    Column('shipping_company', String(50)),
-    Column('shipping_phone', String(20)),
-    Column('shipping_email', String(50)),
-    Column('status', String(50)),
-    Column('customer_reference', String(50)),
-    Column('reference', String(50)),
-    Column('order_create_date', DateTime),
-    Column('order_update_date', DateTime),
-    Column('approval_eligibility_date', DateTime),
-    Column('courier_id', Integer),
-    Column('courier_name', String(50)),
-    Column('tracking_number', String(200)),
-    Column('tracking_url', String(200)),
-    Column('customer_shipping_option', String(100)),
-    Column('commercial_invoice', String(200))
-)
+async def init_connections_pool():
+    return await aiomysql.create_pool(**config['mysql'])
+
+
+async def proceed_orders_table(conn, data):
+    ids = tuple({each[0] for each in data})
+    data_to_insert = str(data).strip('[]')
+
+    delete_query = f"""
+            DELETE FROM orders
+            WHERE order_id in {ids}
+        """
+    insert_query = f"""
+            INSERT INTO orders
+            VALUES {data_to_insert}
+        """
+    async with conn.cursor() as cursor:
+        result = await cursor.execute(delete_query)
+        await conn.commit()
+        logging.info(f'Table orders: {result} rows have been deleted')
+        result = await cursor.execute(insert_query)
+        await conn.commit()
+        logging.info(f'Table orders: {result} rows have been added')
+
+
+async def proceed_session_orders_table(conn, data):
+    ids = tuple({each[0] for each in data})
+    data_to_insert = str(data).strip('[]')
+
+    delete_query = f"""
+           DELETE FROM session_orders
+           WHERE order_id IN {ids}
+        """
+    insert_query = f"""
+            INSERT INTO session_orders
+            VALUES {data_to_insert}
+        """
+    async with conn.cursor() as cursor:
+        result = await cursor.execute(delete_query)
+        await conn.commit()
+        logging.info(f'Table session orders: {result} rows have been deleted')
+        result = await cursor.execute(insert_query)
+        await conn.commit()
+        logging.info(f'Table session orders: {result} rows have been added')
