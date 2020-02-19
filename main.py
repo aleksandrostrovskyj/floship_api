@@ -1,4 +1,3 @@
-from time import time
 import asyncio
 import logging
 from datetime import date, timedelta
@@ -11,6 +10,14 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 
 
 async def floship_orders_api(db_conn_pool, QUEUE, date_from):
+    """
+    Producer function - retrieve orders data via Floship API and put orders ids tuple to the QUEUE;
+    Write orders to database.
+    :param db_conn_pool: pool of MySQL db connections, will be used to write data to the db
+    :param QUEUE: will be used to exchange data between producer and consumer functions
+    :param date_from: param for Floship API - date from orders were updated
+    :return: None
+    """
     floship_api = Floship(FloshipAPI())
     api_url = 'orders/'
     params = {
@@ -37,13 +44,28 @@ async def floship_orders_api(db_conn_pool, QUEUE, date_from):
     await QUEUE.put(None)
 
 
-async def floship_orders_session(floship_session, order_id):
+async def floship_session_request(floship_session, order_id):
+    """
+    Function to retrieve data of order_id Floship order via FloshipSession() implementation
+    :param floship_session: Floship(FloshipSession()) class instance
+    :param order_id: internal id of the Floship's order
+    :return: order data in json format
+    """
+    # Add sleep to avoid Floship server overload
+    await asyncio.sleep(1)
     session_url = f'https://admin.floship.com/internal_api/orders/{order_id}'
     response = await floship_session.make_request('GET', session_url)
     return await response.json()
 
 
-async def procces_1(db_conn_pool, QUEUE):
+async def floship_orders_session(db_conn_pool, QUEUE):
+    """
+    Consumer function - check QUEUE for orders ids tuple and retrieve order data via FloshipSession() implementation;
+    Write orders data to database.
+    :param db_conn_pool: pool of MySQL db connections, will be used to write data to the db
+    :param QUEUE: will be used to exchange data between producer and consumer functions
+    :return: None
+    """
     floship_session = Floship(FloshipSession())
 
     while True:
@@ -53,11 +75,10 @@ async def procces_1(db_conn_pool, QUEUE):
             logging.info('QUEUE is empty. Finish.')
             break
 
-        tasks = []
-        for each in orders_ids:
-            tasks.append(asyncio.create_task(floship_orders_session(floship_session, each)))
+        session_orders_list = []
+        for order_id in orders_ids:
+            session_orders_list.append(await floship_session_request(floship_session, order_id))
 
-        session_orders_list = await asyncio.gather(*tasks)
         parsed_data = [parse_session_response_order(each) for each in session_orders_list]
 
         async with db_conn_pool.acquire() as conn:
@@ -68,11 +89,20 @@ async def procces_1(db_conn_pool, QUEUE):
 
 
 async def main():
+    """
+    Main async function.
+    Initialize
+        QUEUE - async queue object;
+        pool - pool of MySQL db connections
+    Create producer and consumer tasks
+    Run them concurrently
+    :return:
+    """
     QUEUE = asyncio.Queue()
     pool = await init_connections_pool()
     date_from = date.today() - timedelta(days=1)
     prod_task = asyncio.create_task(floship_orders_api(pool, QUEUE, date_from))
-    work_task = asyncio.create_task(procces_1(pool, QUEUE))
+    work_task = asyncio.create_task(floship_orders_session(pool, QUEUE))
     await asyncio.gather(prod_task, work_task)
 
 

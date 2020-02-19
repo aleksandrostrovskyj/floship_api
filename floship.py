@@ -1,10 +1,9 @@
 import json
+import aiohttp
 import logging
 import requests
-import aiohttp
 from settings import config
 from abc import ABC, abstractmethod
-
 
 
 """
@@ -46,13 +45,10 @@ class FloshipAPI(Implementation):
     }
     main_url = 'https://admin.floship.com/api/v1/'
 
-    def __init__(self):
-        self.url = f'{self.main_url}'
-
     async def make_request(self, method, api_url, params):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             logging.info('FloshipAPI: Make request')
-            return await session.request(method=method, url=f'{self.url}{api_url}', params=params)
+            return await session.request(method=method, url=f'{self.main_url}{api_url}', params=params)
 
 
 class FloshipSession(Implementation):
@@ -66,7 +62,8 @@ class FloshipSession(Implementation):
     headers = {
         'accept': "application/json, text/plain, */*",
         'sec-fetch-dest': "empty",
-        'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36",
+        'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/80.0.3987.87 Safari/537.36",
         'content-type': "application/json;charset=UTF-8",
         'cache-control': "no-cache",
     }
@@ -82,8 +79,8 @@ class FloshipSession(Implementation):
 
     def login(self):
         """
-        Method to retrieve session token for further requests
-        :return:
+        Method to log in and store headers and cookies  for further requests
+        :return: None
         """
         temp_session = requests.Session()
         temp_session.request('POST', url=self.login_url, data=json.dumps(self.payload), headers=self.headers)

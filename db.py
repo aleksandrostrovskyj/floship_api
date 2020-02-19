@@ -15,6 +15,7 @@ async def proceed_orders_table(conn, data):
             DELETE FROM orders
             WHERE order_id in {ids}
         """
+
     insert_query = f"""
             INSERT INTO orders
             VALUES {data_to_insert}
